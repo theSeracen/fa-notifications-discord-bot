@@ -52,6 +52,29 @@ def parseFAPage(page: bytes) -> List[str]:
     return foundComments
 
 
+def logCommentsToFile(comments: List):
+    with open('.usedfacomments', 'a') as file:
+        for comment in comments:
+            file.write(comment)
+
+
+def loadCommentsFromFile() -> List[str]:
+    comments = []
+    if os.path.exists('.usedcomments'):
+        with open('.usedcomments', 'r') as file:
+            for line in file:
+                comments.append(line)
+        return comments
+    else:
+        logging.warning('No logged comments file was found')
+        return []
+
+
+def filterUsedComments(foundComments: List, loggedComments: List) -> List[str]:
+    newComments = [comm for comm in foundComments if comm not in loggedComments]
+    return newComments
+
+
 def runBot():
     '''Start up the discord bot'''
     client = discord.Client()
@@ -81,6 +104,7 @@ if __name__ == "__main__":
     logging.basicConfig(filename='furaffinitybot.log', level=logging.DEBUG)
     args = parser.parse_args()
     logging.info('Getting FA page')
-    comments = parseFAPage(getFAPage(args.cookies))
-    if comments:
-        pass
+    foundComments = parseFAPage(getFAPage(args.cookies))
+    newComments = filterUsedComments(foundComments, loadCommentsFromFile())
+    if newComments:
+        print(newComments)

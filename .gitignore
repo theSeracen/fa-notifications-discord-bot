@@ -483,3 +483,4 @@ dmypy.json
 
 # skip all vscode stuff
 .vscode/
+*.log
