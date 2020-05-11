@@ -8,12 +8,16 @@ import http.cookiejar
 from typing import List
 import os
 from comment import Comment
+import os.path
+import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('cookies', help='the cookies file')
+parser.add_argument('--logging', default='debug', help='the logging level for the bot')
 
 
 def getFAPage(cookieloc: str) -> str:
+    '''Get the notifications page on FurAffinity'''
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
     cj.load()
     s = requests.session()
@@ -23,16 +27,25 @@ def getFAPage(cookieloc: str) -> str:
     return page.content
 
 
-def parseFAPage(page: str) -> List[str]:
-    soup = bs4.BeautifulSoup(page.content, 'html.parser')
-    comments = soup.find('section', {'id': 'messages-comments'})
-    foundComments = []
-    for comment in comments.children:
-        pass
+def parseFAPage(page: bytes) -> List[str]:
+    '''Find the comments on the page'''
+    soup = bs4.BeautifulSoup(page, 'html.parser')
+    comments = soup.find('section', {'id': 'messages-comments-submission'})
+    subComments = comments.find('div', {'class': 'section-body js-section'}
+                                ).find('ul', {'class': 'message-stream'}).findAll('li')
+    foundComments = [comm.text for comm in subComments]
+
+    comments = soup.find('section', {'id': 'messages-comments-journal'})
+    journalComments = comments.find('div', {'class': 'section-body js-section'}
+                                    ).find('ul', {'class': 'message-stream'}).findAll('li')
+    for comm in journalComments:
+        foundComments.append(comm.text)
+
     return foundComments
 
 
 def runBot():
+    '''Start up the discord bot'''
     client = discord.Client()
     try:
         discord_token = os.environ['DISCORDTOKEN']
