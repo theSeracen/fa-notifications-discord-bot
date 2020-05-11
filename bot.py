@@ -7,7 +7,6 @@ import discord
 import http.cookiejar
 from typing import List
 import os
-from comment import Comment
 import os.path
 import logging
 
