@@ -17,18 +17,25 @@ parser = argparse.ArgumentParser()
 parser.add_argument('cookies', help='the cookies file')
 parser.add_argument('--logging', default='debug', help='the logging level for the bot')
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        filename='furaffinitybot.log',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.ERROR)
+logging.getLogger(__name__).setLevel(logging.DEBUG)
 
 def getFAPage(cookieloc: str) -> str:
     '''Get the notifications page on FurAffinity'''
-    logging.debug('Atempting to load cookies')
+    logger.debug('Atempting to load cookies')
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
     cj.load()
     s = requests.session()
     s.cookies = cj
-    logging.debug('Cookies loaded')
+    logger.debug('Cookies loaded')
 
     page = s.get('https://www.furaffinity.net/msg/others/')
-    logging.debug('FA page received')
+    logger.debug('FA page received')
     return page.content
 
 
@@ -37,28 +44,28 @@ def parseFAPage(page: bytes) -> List[str]:
     soup = bs4.BeautifulSoup(page, 'html.parser')
     foundComments = []
 
-    logging.debug('Attempting to find submission comments')
+    logger.debug('Attempting to find submission comments')
     try:
         comments = soup.find('section', {'id': 'messages-comments-submission'})
         subComments = comments.find('div', {'class': 'section-body js-section'}
                                     ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logging.debug('{} submission comments found'.format(len(subComments)))
+        logger.debug('{} submission comments found'.format(len(subComments)))
         foundComments = [comm.text for comm in subComments]
     except AttributeError as e:
-        logging.warning('No submission comments found')
+        logger.warning('No submission comments found')
     except Exception as e:
-        logging.critical(e)
+        logger.critical(e)
 
     try:
-        logging.debug('Attempting to find journal comments')
+        logger.debug('Attempting to find journal comments')
         comments = soup.find('section', {'id': 'messages-comments-journal'})
         journalComments = comments.find('div', {'class': 'section-body js-section'}
                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logging.debug('{} journal comments found'.format(len(journalComments)))
+        logger.debug('{} journal comments found'.format(len(journalComments)))
     except AttributeError:
-        logging.warning('No journal comments found')
+        logger.warning('No journal comments found')
     except Exception as e:
-        logging.critical(e)
+        logger.critical(e)
 
     for comm in journalComments:
         foundComments.append(comm.text)
@@ -81,7 +88,7 @@ def loadCommentsFromFile() -> List[str]:
                 comments.append(line)
         return comments
     else:
-        logging.warning('No logged comments file was found')
+        logger.warning('No logged comments file was found')
         return []
 
 
@@ -95,50 +102,45 @@ def runBot(messages: List[str]):
     '''Start up the discord bot'''
     client = discord.Client()
     try:
-        logging.debug('Attempting to load Discord API key')
+        logger.debug('Attempting to load Discord API key')
         discord_token = os.environ['DISCORDTOKEN']
-        logging.debug('Discord token loaded')
+        logger.debug('Discord token loaded')
     except IndexError:
-        logging.critical('Discord token could not be found')
+        logger.critical('Discord token could not be found')
         exit(1)
 
     @client.event
     async def on_ready():
         await client.wait_until_ready()
-        logging.debug('Discord client ready')
+        logger.debug('Discord client ready')
         channelid = int(os.getenv('DISCORD_CHANNEL'))
         channel = client.get_channel(channelid)
 
         for message in messages:
-            logging.debug('Sending message')
+            logger.debug('Sending message')
             await channel.send(message)
 
-        logging.info('Logging Discord bot out')
+        logger.info('Logging Discord bot out')
         await client.logout()
 
-    logging.debug('Starting Discord client')
+    logger.debug('Starting Discord client')
     secret = os.getenv('DISCORDTOKEN')
     client.run(secret)
 
-    logging.debug('Discord client closed')
+    logger.debug('Discord client closed')
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        filename='furaffinitybot.log',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        level=logging.DEBUG)
     args = parser.parse_args()
-    logging.info('Getting FA page')
+    logger.info('Getting FA page')
     foundComments = parseFAPage(getFAPage(args.cookies))
     newComments = filterUsedComments(foundComments, loadCommentsFromFile())
 
     if newComments:
-        logging.info('New comments found')
+        logger.info('New comments found')
         runBot(newComments)
         logCommentsToFile(newComments)
-        logging.debug('Comments written to file')
+        logger.debug('Comments written to file')
     else:
-        logging.info('No new comments found')
-    logging.info('Script complete')
+        logger.info('No new comments found')
+    logger.info('Script complete')
