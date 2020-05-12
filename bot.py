@@ -35,19 +35,31 @@ def getFAPage(cookieloc: str) -> str:
 def parseFAPage(page: bytes) -> List[str]:
     '''Find the comments on the page'''
     soup = bs4.BeautifulSoup(page, 'html.parser')
+    foundComments = []
 
     logging.debug('Attempting to find submission comments')
-    comments = soup.find('section', {'id': 'messages-comments-submission'})
-    subComments = comments.find('div', {'class': 'section-body js-section'}
-                                ).find('ul', {'class': 'message-stream'}).findAll('li')
-    logging.debug('{} submission comments found'.format(len(subComments)))
-    foundComments = [comm.text for comm in subComments]
-
-    logging.debug('Attempting to find journal comments')
-    comments = soup.find('section', {'id': 'messages-comments-journal'})
-    journalComments = comments.find('div', {'class': 'section-body js-section'}
+    try:
+        comments = soup.find('section', {'id': 'messages-comments-submission'})
+        subComments = comments.find('div', {'class': 'section-body js-section'}
                                     ).find('ul', {'class': 'message-stream'}).findAll('li')
-    logging.debug('{} journal comments found'.format(len(subComments)))
+        logging.debug('{} submission comments found'.format(len(subComments)))
+        foundComments = [comm.text for comm in subComments]
+    except AttributeError as e:
+        logging.warning('No submission comments found')
+    except Exception as e:
+        logging.critical(e)
+
+    try:
+        logging.debug('Attempting to find journal comments')
+        comments = soup.find('section', {'id': 'messages-comments-journal'})
+        journalComments = comments.find('div', {'class': 'section-body js-section'}
+                                        ).find('ul', {'class': 'message-stream'}).findAll('li')
+        logging.debug('{} journal comments found'.format(len(subComments)))
+    except AttributeError:
+        logging.warning('No journal comments found')
+    except Exception as e:
+        logging.critical(e)
+
     for comm in journalComments:
         foundComments.append(comm.text)
 
