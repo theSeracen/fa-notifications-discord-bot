@@ -7,9 +7,12 @@ import discord
 import http.cookiejar
 from typing import List
 import os
+import sys
 import os.path
 import logging
+from dotenv import load_dotenv
 
+load_dotenv()
 parser = argparse.ArgumentParser()
 parser.add_argument('cookies', help='the cookies file')
 parser.add_argument('--logging', default='debug', help='the logging level for the bot')
@@ -52,9 +55,10 @@ def parseFAPage(page: bytes) -> List[str]:
 
 
 def logCommentsToFile(comments: List):
-    with open('.usedfacomments', 'a') as file:
+    with open('.usedcomments', 'a') as file:
         for comment in comments:
             file.write(comment)
+            file.write('\n')
 
 
 def loadCommentsFromFile() -> List[str]:
@@ -70,11 +74,12 @@ def loadCommentsFromFile() -> List[str]:
 
 
 def filterUsedComments(foundComments: List, loggedComments: List) -> List[str]:
+    loggedComments = [comm.strip() for comm in loggedComments]
     newComments = [comm for comm in foundComments if comm not in loggedComments]
     return newComments
 
 
-def runBot():
+def runBot(messages: List[str]):
     '''Start up the discord bot'''
     client = discord.Client()
     try:
@@ -82,28 +87,46 @@ def runBot():
         discord_token = os.environ['DISCORDTOKEN']
         logging.debug('Discord token loaded')
     except IndexError:
-        print("Discord API token could not be loaded")
         logging.critical('Discord token could not be found')
         exit(1)
 
     @client.event
     async def on_ready():
+        await client.wait_until_ready()
         logging.debug('Discord client ready')
-        pass
+        channelid = int(os.getenv('DISCORD_CHANNEL'))
+        channel = client.get_channel(channelid)
+
+        for message in messages:
+            logging.debug('Sending message')
+            await channel.send(message)
+
+        logging.info('Logging Discord bot out')
+        await client.logout()
 
     logging.debug('Starting Discord client')
-    client.start(discord_token)
-    while not client.is_ready():
-        pass
-    client.logout()
+    secret = os.getenv('DISCORDTOKEN')
+    client.run(secret)
+
     logging.debug('Discord client closed')
 
 
 if __name__ == "__main__":
-    logging.basicConfig(filename='furaffinitybot.log', level=logging.DEBUG)
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        filename='furaffinitybot.log',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        level=logging.DEBUG)
     args = parser.parse_args()
     logging.info('Getting FA page')
     foundComments = parseFAPage(getFAPage(args.cookies))
     newComments = filterUsedComments(foundComments, loadCommentsFromFile())
+
     if newComments:
-        print(newComments)
+        logging.info('New comments found')
+        runBot(newComments)
+        logCommentsToFile(newComments)
+        logging.debug('Comments written to file')
+    else:
+        logging.info('No new comments found')
+    logging.info('Script complete')
