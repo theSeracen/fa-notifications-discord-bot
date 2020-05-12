@@ -54,7 +54,7 @@ def parseFAPage(page: bytes) -> List[str]:
         comments = soup.find('section', {'id': 'messages-comments-journal'})
         journalComments = comments.find('div', {'class': 'section-body js-section'}
                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logging.debug('{} journal comments found'.format(len(subComments)))
+        logging.debug('{} journal comments found'.format(len(journalComments)))
     except AttributeError:
         logging.warning('No journal comments found')
     except Exception as e:
