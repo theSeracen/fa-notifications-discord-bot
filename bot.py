@@ -56,6 +56,7 @@ def parseFAPage(page: bytes) -> List[str]:
     except Exception as e:
         logger.critical(e)
 
+    journalComments = []
     try:
         logger.debug('Attempting to find journal comments')
         comments = soup.find('section', {'id': 'messages-comments-journal'})
