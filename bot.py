@@ -4,6 +4,7 @@ import argparse
 import bs4
 import requests
 import discord
+import re
 import http.cookiejar
 from typing import List
 import os
@@ -19,13 +20,14 @@ parser.add_argument('--logging', default='debug', help='the logging level for th
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        filename='furaffinitybot.log',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        level=logging.ERROR)
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    filename='furaffinitybot.log',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    level=logging.ERROR)
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 
-def getFAPage(cookieloc: str) -> str:
+
+def getFAPage(cookieloc: str, url: str) -> str:
     '''Get the notifications page on FurAffinity'''
     logger.debug('Atempting to load cookies')
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
@@ -34,12 +36,28 @@ def getFAPage(cookieloc: str) -> str:
     s.cookies = cj
     logger.debug('Cookies loaded')
 
-    page = s.get('https://www.furaffinity.net/msg/others/')
+    page = s.get(url)
     logger.debug('FA page received')
     return page.content
 
 
-def parseFAPage(page: bytes) -> List[str]:
+def parseFANotesPage(page: bytes) -> List[str]:
+    '''Find the unread notes on the page'''
+    soup = bs4.BeautifulSoup(page, 'html.parser')
+    logger.debug('Attempting to find unread notes')
+
+    unreadNotes = []
+    notes = soup.findAll('div', {'class': 'message-center-pms-note-list-view'})
+    for note in notes:
+        if note.find('img', {'class': 'unread'}):
+            message = note.text.strip()
+            message = re.sub(r'\s+', ' ', message)
+            unreadNotes.append(message)
+    logger.info('{} unread notes found'.format(len(unreadNotes)))
+    return unreadNotes
+
+
+def parseFAMessagePage(page: bytes) -> List[str]:
     '''Find the comments on the page'''
     soup = bs4.BeautifulSoup(page, 'html.parser')
     foundComments = []
@@ -104,7 +122,6 @@ def runBot(messages: List[str]):
     client = discord.Client()
     try:
         logger.debug('Attempting to load Discord API key')
-        discord_token = os.environ['DISCORDTOKEN']
         logger.debug('Discord token loaded')
     except IndexError:
         logger.critical('Discord token could not be found')
@@ -134,13 +151,16 @@ def runBot(messages: List[str]):
 if __name__ == "__main__":
     args = parser.parse_args()
     logger.info('Getting FA page')
-    foundComments = parseFAPage(getFAPage(args.cookies))
-    newComments = filterUsedComments(foundComments, loadCommentsFromFile())
+    foundNotes = parseFANotesPage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/pms/'))
+    foundNotifications = parseFAMessagePage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/others/'))
 
-    if newComments:
+    newNotifs = foundNotifications + foundNotes
+    newNotifs = filterUsedComments(newNotifs, loadCommentsFromFile())
+
+    if newNotifs:
         logger.info('New comments found')
-        runBot(newComments)
-        logCommentsToFile(newComments)
+        runBot(newNotifs)
+        logCommentsToFile(newNotifs)
         logger.debug('Comments written to file')
     else:
         logger.info('No new comments found')
