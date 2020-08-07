@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
 import argparse
-import bs4
-import requests
-import discord
-import re
 import http.cookiejar
-from typing import List
-import os
-import sys
-import os.path
 import logging
+import os
+import os.path
+import re
+import sys
+from typing import List
+
+import bs4
+import discord
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
