@@ -29,7 +29,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 
 def getFAPage(cookieloc: str, url: str) -> str:
     '''Get the notifications page on FurAffinity'''
-    logger.debug('Atempting to load cookies')
+    logger.debug('Attempting to load cookies')
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
     cj.load()
     s = requests.session()
@@ -83,6 +83,18 @@ def parseFAMessagePage(page: bytes) -> List[str]:
         logger.debug('{} journal comments found'.format(len(journalComments)))
     except AttributeError:
         logger.warning('No journal comments found')
+    except Exception as e:
+        logger.critical(e)
+
+    shouts = []
+    try:
+        logger.debug('Attempting to find shouts')
+        comments = soup.find('section', {'id': 'messages-shouts'})
+        journalComments = comments.find('div', {'class': 'section-body js-section'}
+                                        ).find('ul', {'class': 'message-stream'}).findAll('li')
+        logger.debug('{} shouts found'.format(len(shouts)))
+    except AttributeError:
+        logger.warning('No shouts found')
     except Exception as e:
         logger.critical(e)
 
