@@ -7,6 +7,7 @@ import os
 import os.path
 import re
 import sys
+import time
 from typing import List
 
 import bs4
@@ -37,7 +38,13 @@ def getFAPage(cookieloc: str, url: str) -> str:
     s.cookies = cj
     logger.debug('Cookies loaded')
 
-    page = s.get(url)
+    try:
+        page = s.get(url)
+    except requests.ConnectionError:
+        logger.critical('Failed to get page {}, retrying in 60 seconds'.format(url))
+        time.sleep(60)
+        page = s.get(url)
+
     logger.debug('FA page received')
     return page.content
 
