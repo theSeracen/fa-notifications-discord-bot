@@ -16,17 +16,8 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-parser = argparse.ArgumentParser()
-parser.add_argument('cookies', help='the cookies file')
-parser.add_argument('--logging', default='debug', help='the logging level for the bot')
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    filename='furaffinitybot.log',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    level=logging.ERROR)
-logging.getLogger(__name__).setLevel(logging.DEBUG)
+parser = argparse.ArgumentParser()
 
 
 def getFAPage(cookieloc: str, url: str) -> str:
@@ -169,7 +160,22 @@ def runBot(messages: List[str]):
 
 
 if __name__ == "__main__":
+    parser.add_argument('cookies', help='the cookies file')
+    parser.add_argument('-v', '--verbose', action='count')
+
+    logger = logging.getLogger()
+    logger.setLevel(1)
+    stream = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('[%(asctime)s - %(name)s - %(levelname)s] - %(message)s')
+    stream.setFormatter(formatter)
+    stream.setLevel(logging.INFO)
+    logger.addHandler(stream)
+
     args = parser.parse_args()
+
+    if args.verbose > 0:
+        stream.setLevel(logging.DEBUG)
+
     logger.info('Getting FA page')
     foundNotes = parseFANotesPage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/pms/'))
     foundNotifications = parseFAMessagePage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/others/'))
@@ -184,4 +190,3 @@ if __name__ == "__main__":
         logger.debug('Comments written to file')
     else:
         logger.info('No new comments found')
-    logger.info('Script complete')
