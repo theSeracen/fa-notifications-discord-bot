@@ -3,9 +3,7 @@
 import argparse
 import http.cookiejar
 import logging
-from logging import exception
 import os
-import os.path
 import pathlib
 import re
 import sys
@@ -114,7 +112,7 @@ def logCommentsToFile(comments: List):
 
 def loadCommentsFromFile() -> List[str]:
     comments = []
-    if os.path.exists('.usedcomments'):
+    if pathlib.Path('.useddcomments').exists():
         with open('.usedcomments', 'r') as file:
             for line in file:
                 comments.append(line)
