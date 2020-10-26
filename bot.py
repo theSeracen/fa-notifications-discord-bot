@@ -3,8 +3,10 @@
 import argparse
 import http.cookiejar
 import logging
+from logging import exception
 import os
 import os.path
+import pathlib
 import re
 import sys
 import time
@@ -175,6 +177,10 @@ if __name__ == "__main__":
 
     if args.verbose > 0:
         stream.setLevel(logging.DEBUG)
+
+    args.cookies = pathlib.Path(args.cookies).resolve()
+    if not args.cookies.exists():
+        raise Exception('Cannot find cookies file')
 
     logger.info('Getting FA page')
     foundNotes = parseFANotesPage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/pms/'))
