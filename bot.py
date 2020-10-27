@@ -161,7 +161,7 @@ def runBot(messages: List[str]):
 
 if __name__ == "__main__":
     parser.add_argument('cookies', help='the cookies file')
-    parser.add_argument('-v', '--verbose', action='count')
+    parser.add_argument('-v', '--verbose', default=0, action='count')
 
     logger = logging.getLogger()
     logger.setLevel(1)
