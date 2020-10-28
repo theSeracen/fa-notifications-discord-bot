@@ -70,7 +70,7 @@ def parseFAMessagePage(page: bytes) -> List[str]:
         comments = soup.find('section', {'id': 'messages-comments-submission'})
         subComments = comments.find('div', {'class': 'section-body js-section'}
                                     ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logger.debug('{} submission comments found'.format(len(subComments)))
+        logger.info('{} submission comments found'.format(len(subComments)))
         foundComments = [comm.text for comm in subComments]
     except AttributeError as e:
         logger.info('No submission comments found')
@@ -83,7 +83,7 @@ def parseFAMessagePage(page: bytes) -> List[str]:
         comments = soup.find('section', {'id': 'messages-comments-journal'})
         journalComments = comments.find('div', {'class': 'section-body js-section'}
                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logger.debug('{} journal comments found'.format(len(journalComments)))
+        logger.info('{} journal comments found'.format(len(journalComments)))
     except AttributeError:
         logger.info('No journal comments found')
     except Exception as e:
@@ -95,7 +95,7 @@ def parseFAMessagePage(page: bytes) -> List[str]:
         comments = soup.find('section', {'id': 'messages-shouts'})
         shouts = comments.find('div', {'class': 'section-body js-section'}
                                ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logger.debug('{} shouts found'.format(len(shouts)))
+        logger.info('{} shouts found'.format(len(shouts)))
     except AttributeError:
         logger.info('No shouts found')
     except Exception as e:
