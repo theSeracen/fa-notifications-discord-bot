@@ -32,9 +32,13 @@ def getFAPage(cookieloc: str, url: str) -> str:
     try:
         page = s.get(url)
     except requests.ConnectionError:
-        logger.critical('Failed to get page {}, retrying in 60 seconds'.format(url))
+        logger.error('Failed to get page {}, retrying in 60 seconds'.format(url))
         time.sleep(60)
-        page = s.get(url)
+        try:
+            page = s.get(url)
+        except requests.ConnectionError as e:
+            logger.critical('Failed to get page {}: {}'.format(url, e))
+            raise e
 
     logger.debug('FA page received')
     return page.content
@@ -43,7 +47,6 @@ def getFAPage(cookieloc: str, url: str) -> str:
 def parseFANotesPage(page: bytes) -> List[str]:
     '''Find the unread notes on the page'''
     soup = bs4.BeautifulSoup(page, 'html.parser')
-    logger.debug('Attempting to find unread notes')
 
     unreadNotes = []
     notes = soup.findAll('div', {'class': 'message-center-pms-note-list-view'})
@@ -52,6 +55,7 @@ def parseFANotesPage(page: bytes) -> List[str]:
             message = note.text.strip()
             message = re.sub(r'\s+', ' ', message)
             unreadNotes.append(message)
+
     logger.info('{} unread notes found'.format(len(unreadNotes)))
     return unreadNotes
 
@@ -69,7 +73,7 @@ def parseFAMessagePage(page: bytes) -> List[str]:
         logger.debug('{} submission comments found'.format(len(subComments)))
         foundComments = [comm.text for comm in subComments]
     except AttributeError as e:
-        logger.warning('No submission comments found')
+        logger.info('No submission comments found')
     except Exception as e:
         logger.critical(e)
 
@@ -81,7 +85,7 @@ def parseFAMessagePage(page: bytes) -> List[str]:
                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
         logger.debug('{} journal comments found'.format(len(journalComments)))
     except AttributeError:
-        logger.warning('No journal comments found')
+        logger.info('No journal comments found')
     except Exception as e:
         logger.critical(e)
 
@@ -93,7 +97,7 @@ def parseFAMessagePage(page: bytes) -> List[str]:
                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
         logger.debug('{} shouts found'.format(len(shouts)))
     except AttributeError:
-        logger.warning('No shouts found')
+        logger.info('No shouts found')
     except Exception as e:
         logger.critical(e)
 
@@ -136,13 +140,19 @@ def runBot(messages: List[str]):
         logger.debug('Discord token loaded')
     except IndexError:
         logger.critical('Discord token could not be found')
-        exit(1)
+        sys.exit(1)
 
     @client.event
     async def on_ready():
         await client.wait_until_ready()
         logger.debug('Discord client ready')
-        channelid = int(os.getenv('DISCORD_CHANNEL'))
+
+        try:
+            channelid = int(os.getenv('DISCORD_CHANNEL'))
+        except ValueError:
+            logger.critical('Invalid channel ID given, must be integer: {}'.format(os.getenv('DISCORD_CHANNEL')))
+            sys.exit(1)
+
         channel = client.get_channel(channelid)
 
         for message in messages:
@@ -155,8 +165,6 @@ def runBot(messages: List[str]):
     logger.debug('Starting Discord client')
     secret = os.getenv('DISCORDTOKEN')
     client.run(secret)
-
-    logger.debug('Discord client closed')
 
 
 if __name__ == "__main__":
