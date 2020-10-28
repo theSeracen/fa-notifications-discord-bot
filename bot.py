@@ -196,9 +196,9 @@ if __name__ == "__main__":
     newNotifs = filterUsedComments(newNotifs, loadCommentsFromFile())
 
     if newNotifs:
-        logger.info('New comments found')
+        logger.info('New notifications found')
         runBot(newNotifs)
         logCommentsToFile(newNotifs)
-        logger.debug('Comments written to file')
+        logger.debug('Notifications written to file')
     else:
-        logger.info('No new comments found')
+        logger.info('No new notifications found')
