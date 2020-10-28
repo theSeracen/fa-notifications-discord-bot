@@ -93,16 +93,16 @@ def parseFAMessagePage(page: bytes) -> List[str]:
     try:
         logger.debug('Attempting to find shouts')
         comments = soup.find('section', {'id': 'messages-shouts'})
-        journalComments = comments.find('div', {'class': 'section-body js-section'}
-                                        ).find('ul', {'class': 'message-stream'}).findAll('li')
+        shouts = comments.find('div', {'class': 'section-body js-section'}
+                               ).find('ul', {'class': 'message-stream'}).findAll('li')
         logger.debug('{} shouts found'.format(len(shouts)))
     except AttributeError:
         logger.info('No shouts found')
     except Exception as e:
         logger.critical(e)
 
-    for comm in journalComments:
-        foundComments.append(comm.text)
+    foundComments.extend([comm.text for comm in journalComments])
+    foundComments.extend([shout.text for shout in shouts])
 
     return foundComments
 
