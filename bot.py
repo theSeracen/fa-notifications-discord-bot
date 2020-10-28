@@ -112,7 +112,7 @@ def logCommentsToFile(comments: List):
 
 def loadCommentsFromFile() -> List[str]:
     comments = []
-    if pathlib.Path('.useddcomments').exists():
+    if pathlib.Path('.usedcomments').exists():
         with open('.usedcomments', 'r') as file:
             for line in file:
                 comments.append(line)
