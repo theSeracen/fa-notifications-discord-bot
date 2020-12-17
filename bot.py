@@ -8,7 +8,6 @@ import pathlib
 import re
 import sys
 import time
-from typing import List
 
 import bs4
 import discord
@@ -44,7 +43,7 @@ def getFAPage(cookieloc: str, url: str) -> str:
     return page.content
 
 
-def parseFANotesPage(page: bytes) -> List[str]:
+def parseFANotesPage(page: bytes) -> list[str]:
     """Find the unread notes on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
 
@@ -60,7 +59,7 @@ def parseFANotesPage(page: bytes) -> List[str]:
     return unreadNotes
 
 
-def parseFAMessagePage(page: bytes) -> List[str]:
+def parseFAMessagePage(page: bytes) -> list[str]:
     """Find the comments on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
     foundComments = []
@@ -107,14 +106,14 @@ def parseFAMessagePage(page: bytes) -> List[str]:
     return foundComments
 
 
-def logCommentsToFile(comments: List):
+def logCommentsToFile(comments: list):
     with open('.usedcomments', 'a') as file:
         for comment in comments:
             file.write(comment)
             file.write('\n')
 
 
-def loadCommentsFromFile() -> List[str]:
+def loadCommentsFromFile() -> list[str]:
     comments = []
     if pathlib.Path('.usedcomments').exists():
         with open('.usedcomments', 'r') as file:
@@ -126,13 +125,13 @@ def loadCommentsFromFile() -> List[str]:
         return []
 
 
-def filterUsedComments(foundComments: List, loggedComments: List) -> List[str]:
+def filterUsedComments(foundComments: list, loggedComments: list) -> list[str]:
     loggedComments = [comm.strip() for comm in loggedComments]
     newComments = [comm for comm in foundComments if comm not in loggedComments]
     return newComments
 
 
-def runBot(messages: List[str]):
+def runBot(messages: list[str]):
     """Start up the discord bot"""
     client = discord.Client()
     try:
