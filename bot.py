@@ -23,10 +23,7 @@ logger = logging.getLogger()
 def getFAPage(cookieloc: str, url: str) -> str:
     """Get the notifications page on FurAffinity"""
     logger.debug('Attempting to load cookies')
-    cj = http.cookiejar.MozillaCookieJar(cookieloc)
-    cj.load()
-    s = requests.session()
-    s.cookies = cj
+    s = _make_session(cookieloc)
     logger.debug('Cookies loaded')
 
     try:
@@ -42,6 +39,14 @@ def getFAPage(cookieloc: str, url: str) -> str:
 
     logger.debug('FA page received')
     return page.text
+
+
+def _make_session(cookieloc):
+    cj = http.cookiejar.MozillaCookieJar(cookieloc)
+    cj.load()
+    s = requests.session()
+    s.cookies = cj
+    return s
 
 
 def parseFANotesPage(page: str) -> list[str]:
@@ -67,11 +72,9 @@ def parseFAMessagePage(page: str) -> list[str]:
 
     logger.debug('Attempting to find submission comments')
     try:
-        comments = soup.find('section', {'id': 'messages-comments-submission'})
-        sub_comments = comments.find('div', {'class': 'section-body js-section'}
-                                     ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logger.info('{} submission comments found'.format(len(sub_comments)))
-        found_comments = [comm.text for comm in sub_comments]
+        submission_comments = _find_notification_in_page(soup, 'messages-comments-submission')
+        logger.info('{} submission comments found'.format(len(submission_comments)))
+        found_comments = [comm.text for comm in submission_comments]
     except AttributeError:
         logger.info('No submission comments found')
     except Exception as e:
@@ -80,9 +83,7 @@ def parseFAMessagePage(page: str) -> list[str]:
     journal_comments = []
     try:
         logger.debug('Attempting to find journal comments')
-        comments = soup.find('section', {'id': 'messages-comments-journal'})
-        journal_comments = comments.find('div', {'class': 'section-body js-section'}
-                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
+        journal_comments = _find_notification_in_page(soup, 'messages-comments-journal')
         logger.info('{} journal comments found'.format(len(journal_comments)))
     except AttributeError:
         logger.info('No journal comments found')
@@ -92,9 +93,7 @@ def parseFAMessagePage(page: str) -> list[str]:
     shouts = []
     try:
         logger.debug('Attempting to find shouts')
-        comments = soup.find('section', {'id': 'messages-shouts'})
-        shouts = comments.find('div', {'class': 'section-body js-section'}
-                               ).find('ul', {'class': 'message-stream'}).findAll('li')
+        shouts = _find_notification_in_page(soup, 'messages-shouts')
         logger.info('{} shouts found'.format(len(shouts)))
     except AttributeError:
         logger.info('No shouts found')
@@ -105,6 +104,13 @@ def parseFAMessagePage(page: str) -> list[str]:
     found_comments.extend([shout.text for shout in shouts])
 
     return found_comments
+
+
+def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str):
+    comments = soup.find('section', {'id': id_value})
+    found_notifications = comments.find('div', {'class': 'section-body js-section'}).find(
+        'ul', {'class': 'message-stream'}).findAll('li')
+    return found_notifications
 
 
 def logCommentsToFile(comments: list):
