@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser()
 
 
 def getFAPage(cookieloc: str, url: str) -> str:
-    '''Get the notifications page on FurAffinity'''
+    """Get the notifications page on FurAffinity"""
     logger.debug('Attempting to load cookies')
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
     cj.load()
@@ -45,7 +45,7 @@ def getFAPage(cookieloc: str, url: str) -> str:
 
 
 def parseFANotesPage(page: bytes) -> List[str]:
-    '''Find the unread notes on the page'''
+    """Find the unread notes on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
 
     unreadNotes = []
@@ -61,7 +61,7 @@ def parseFANotesPage(page: bytes) -> List[str]:
 
 
 def parseFAMessagePage(page: bytes) -> List[str]:
-    '''Find the comments on the page'''
+    """Find the comments on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
     foundComments = []
 
@@ -133,7 +133,7 @@ def filterUsedComments(foundComments: List, loggedComments: List) -> List[str]:
 
 
 def runBot(messages: List[str]):
-    '''Start up the discord bot'''
+    """Start up the discord bot"""
     client = discord.Client()
     try:
         logger.debug('Attempting to load Discord API key')
