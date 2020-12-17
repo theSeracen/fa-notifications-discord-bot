@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 parser = argparse.ArgumentParser()
+logger = logging.getLogger()
 
 
 def getFAPage(cookieloc: str, url: str) -> str:
@@ -40,49 +41,49 @@ def getFAPage(cookieloc: str, url: str) -> str:
             raise e
 
     logger.debug('FA page received')
-    return page.content
+    return page.text
 
 
-def parseFANotesPage(page: bytes) -> list[str]:
+def parseFANotesPage(page: str) -> list[str]:
     """Find the unread notes on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
 
-    unreadNotes = []
+    unread_notes = []
     notes = soup.findAll('div', {'class': 'message-center-pms-note-list-view'})
     for note in notes:
         if note.find('img', {'class': 'unread'}):
             message = note.text.strip()
             message = re.sub(r'\s+', ' ', message)
-            unreadNotes.append(message)
+            unread_notes.append(message)
 
-    logger.info('{} unread notes found'.format(len(unreadNotes)))
-    return unreadNotes
+    logger.info('{} unread notes found'.format(len(unread_notes)))
+    return unread_notes
 
 
-def parseFAMessagePage(page: bytes) -> list[str]:
+def parseFAMessagePage(page: str) -> list[str]:
     """Find the comments on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
-    foundComments = []
+    found_comments = []
 
     logger.debug('Attempting to find submission comments')
     try:
         comments = soup.find('section', {'id': 'messages-comments-submission'})
-        subComments = comments.find('div', {'class': 'section-body js-section'}
-                                    ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logger.info('{} submission comments found'.format(len(subComments)))
-        foundComments = [comm.text for comm in subComments]
-    except AttributeError as e:
+        sub_comments = comments.find('div', {'class': 'section-body js-section'}
+                                     ).find('ul', {'class': 'message-stream'}).findAll('li')
+        logger.info('{} submission comments found'.format(len(sub_comments)))
+        found_comments = [comm.text for comm in sub_comments]
+    except AttributeError:
         logger.info('No submission comments found')
     except Exception as e:
         logger.critical(e)
 
-    journalComments = []
+    journal_comments = []
     try:
         logger.debug('Attempting to find journal comments')
         comments = soup.find('section', {'id': 'messages-comments-journal'})
-        journalComments = comments.find('div', {'class': 'section-body js-section'}
-                                        ).find('ul', {'class': 'message-stream'}).findAll('li')
-        logger.info('{} journal comments found'.format(len(journalComments)))
+        journal_comments = comments.find('div', {'class': 'section-body js-section'}
+                                         ).find('ul', {'class': 'message-stream'}).findAll('li')
+        logger.info('{} journal comments found'.format(len(journal_comments)))
     except AttributeError:
         logger.info('No journal comments found')
     except Exception as e:
@@ -100,10 +101,10 @@ def parseFAMessagePage(page: bytes) -> list[str]:
     except Exception as e:
         logger.critical(e)
 
-    foundComments.extend([comm.text for comm in journalComments])
-    foundComments.extend([shout.text for shout in shouts])
+    found_comments.extend([comm.text for comm in journal_comments])
+    found_comments.extend([shout.text for shout in shouts])
 
-    return foundComments
+    return found_comments
 
 
 def logCommentsToFile(comments: list):
@@ -125,10 +126,10 @@ def loadCommentsFromFile() -> list[str]:
         return []
 
 
-def filterUsedComments(foundComments: list, loggedComments: list) -> list[str]:
-    loggedComments = [comm.strip() for comm in loggedComments]
-    newComments = [comm for comm in foundComments if comm not in loggedComments]
-    return newComments
+def filterUsedComments(found_comments: list, logged_comments: list) -> list[str]:
+    logged_comments = [comm.strip() for comm in logged_comments]
+    new_comments = [comm for comm in found_comments if comm not in logged_comments]
+    return new_comments
 
 
 def runBot(messages: list[str]):
@@ -170,7 +171,6 @@ if __name__ == "__main__":
     parser.add_argument('cookies', help='the cookies file')
     parser.add_argument('-v', '--verbose', default=0, action='count')
 
-    logger = logging.getLogger()
     logger.setLevel(1)
     stream = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('[%(asctime)s - %(name)s - %(levelname)s] - %(message)s')
