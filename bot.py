@@ -7,7 +7,6 @@ import os
 import pathlib
 import re
 import sys
-import time
 
 import bs4
 import discord
@@ -22,21 +21,13 @@ logger = logging.getLogger()
 
 def getFAPage(cookieloc: str, url: str) -> str:
     """Get the notifications page on FurAffinity"""
-    logger.debug('Attempting to load cookies')
     s = _make_session(cookieloc)
     logger.debug('Cookies loaded')
-
     try:
         page = s.get(url)
-    except requests.ConnectionError:
-        logger.error('Failed to get page {}, retrying in 60 seconds'.format(url))
-        time.sleep(60)
-        try:
-            page = s.get(url)
-        except requests.ConnectionError as e:
-            logger.critical('Failed to get page {}: {}'.format(url, e))
-            raise e
-
+    except Exception as e:
+        logger.critical('Failed to get page {}'.format(url))
+        raise e
     logger.debug('FA page received')
     return page.text
 
@@ -68,38 +59,17 @@ def parseFANotesPage(page: str) -> list[str]:
 def parseFAMessagePage(page: str) -> list[str]:
     """Find the comments on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
-    found_comments = []
 
-    logger.debug('Attempting to find submission comments')
-    try:
-        submission_comments = _find_notification_in_page(soup, 'messages-comments-submission')
-        logger.info('{} submission comments found'.format(len(submission_comments)))
-        found_comments = [comm.text for comm in submission_comments]
-    except AttributeError:
-        logger.info('No submission comments found')
-    except Exception as e:
-        logger.critical(e)
+    submission_comments = _find_notification_in_page(soup, 'messages-comments-submission')
+    logger.info('{} submission comments found'.format(len(submission_comments)))
 
-    journal_comments = []
-    try:
-        logger.debug('Attempting to find journal comments')
-        journal_comments = _find_notification_in_page(soup, 'messages-comments-journal')
-        logger.info('{} journal comments found'.format(len(journal_comments)))
-    except AttributeError:
-        logger.info('No journal comments found')
-    except Exception as e:
-        logger.critical(e)
+    journal_comments = _find_notification_in_page(soup, 'messages-comments-journal')
+    logger.info('{} journal comments found'.format(len(journal_comments)))
 
-    shouts = []
-    try:
-        logger.debug('Attempting to find shouts')
-        shouts = _find_notification_in_page(soup, 'messages-shouts')
-        logger.info('{} shouts found'.format(len(shouts)))
-    except AttributeError:
-        logger.info('No shouts found')
-    except Exception as e:
-        logger.critical(e)
+    shouts = _find_notification_in_page(soup, 'messages-shouts')
+    logger.info('{} shouts found'.format(len(shouts)))
 
+    found_comments = [comm.text for comm in submission_comments]
     found_comments.extend([comm.text for comm in journal_comments])
     found_comments.extend([shout.text for shout in shouts])
 
@@ -107,32 +77,32 @@ def parseFAMessagePage(page: str) -> list[str]:
 
 
 def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str):
-    comments = soup.find('section', {'id': id_value})
-    found_notifications = comments.find('div', {'class': 'section-body js-section'}).find(
-        'ul', {'class': 'message-stream'}).findAll('li')
+    try:
+        comments = soup.find('section', {'id': id_value})
+        found_notifications = comments.find('div', {'class': 'section-body js-section'}).find(
+            'ul', {'class': 'message-stream'}).findAll('li')
+    except AttributeError:
+        # thrown when nothing is found
+        return []
     return found_notifications
 
 
-def logCommentsToFile(comments: list):
+def logCommentsToFile(comments: list[str]):
     with open('.usedcomments', 'a') as file:
-        for comment in comments:
-            file.write(comment)
-            file.write('\n')
+        file.writelines(comments)
 
 
 def loadCommentsFromFile() -> list[str]:
-    comments = []
     if pathlib.Path('.usedcomments').exists():
         with open('.usedcomments', 'r') as file:
-            for line in file:
-                comments.append(line)
+            comments = file.readlines()
         return comments
     else:
-        logger.warning('No logged comments file was found')
+        logger.warning('No logged comments were found')
         return []
 
 
-def filterUsedComments(found_comments: list, logged_comments: list) -> list[str]:
+def filterUsedComments(found_comments: list[str], logged_comments: list[str]) -> list[str]:
     logged_comments = [comm.strip() for comm in logged_comments]
     new_comments = [comm for comm in found_comments if comm not in logged_comments]
     return new_comments
@@ -141,18 +111,9 @@ def filterUsedComments(found_comments: list, logged_comments: list) -> list[str]
 def runBot(messages: list[str]):
     """Start up the discord bot"""
     client = discord.Client()
-    try:
-        logger.debug('Attempting to load Discord API key')
-        logger.debug('Discord token loaded')
-    except IndexError:
-        logger.critical('Discord token could not be found')
-        sys.exit(1)
 
     @client.event
     async def on_ready():
-        await client.wait_until_ready()
-        logger.debug('Discord client ready')
-
         try:
             channelid = int(os.getenv('DISCORD_CHANNEL'))
         except ValueError:
@@ -169,8 +130,10 @@ def runBot(messages: list[str]):
         await client.logout()
 
     logger.debug('Starting Discord client')
-    secret = os.getenv('DISCORDTOKEN')
-    client.run(secret)
+    if secret := os.getenv('DISCORDTOKEN'):
+        client.run(secret)
+    else:
+        raise Exception('Could not load Discord token from environment')
 
 
 if __name__ == "__main__":
@@ -193,7 +156,7 @@ if __name__ == "__main__":
     if not args.cookies.exists():
         raise Exception('Cannot find cookies file')
 
-    logger.info('Getting FA page')
+    logger.info('Getting FA pages')
     foundNotes = parseFANotesPage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/pms/'))
     foundNotifications = parseFAMessagePage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/others/'))
 
