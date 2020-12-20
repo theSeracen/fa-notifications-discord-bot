@@ -32,7 +32,7 @@ def getFAPage(cookieloc: str, url: str) -> str:
     return page.text
 
 
-def _make_session(cookieloc):
+def _make_session(cookieloc) -> requests.Session:
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
     cj.load()
     s = requests.session()
