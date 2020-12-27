@@ -89,7 +89,8 @@ def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str):
 
 def logCommentsToFile(comments: list[str]):
     with open('.usedcomments', 'a') as file:
-        file.writelines(comments)
+        for comment in comments:
+            file.write(comment + '\n')
 
 
 def loadCommentsFromFile() -> list[str]:
