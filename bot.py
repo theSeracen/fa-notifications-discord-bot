@@ -87,15 +87,15 @@ def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str):
     return found_notifications
 
 
-def logCommentsToFile(comments: list[str]):
-    with open('.usedcomments', 'a') as file:
+def logCommentsToFile(comments_file: pathlib.Path, comments: list[str]):
+    with open(comments_file, 'a') as file:
         for comment in comments:
             file.write(comment + '\n')
 
 
-def loadCommentsFromFile() -> list[str]:
-    if pathlib.Path('.usedcomments').exists():
-        with open('.usedcomments', 'r') as file:
+def loadCommentsFromFile(comment_file: pathlib.Path) -> list[str]:
+    if comment_file.exists():
+        with open(comment_file, 'r') as file:
             comments = file.readlines()
         return comments
     else:
@@ -140,6 +140,7 @@ def runBot(messages: list[str]):
 if __name__ == "__main__":
     parser.add_argument('cookies', help='the cookies file')
     parser.add_argument('-v', '--verbose', default=0, action='count')
+    parser.add_argument('-l', '--comments-log-file', default='.usedcomments')
 
     logger.setLevel(1)
     stream = logging.StreamHandler(sys.stdout)
@@ -154,6 +155,7 @@ if __name__ == "__main__":
         stream.setLevel(logging.DEBUG)
 
     args.cookies = pathlib.Path(args.cookies).resolve()
+    args.comments_log_file = pathlib.Path(args.comments_log_file).resolve()
     if not args.cookies.exists():
         raise Exception('Cannot find cookies file')
 
@@ -162,12 +164,12 @@ if __name__ == "__main__":
     foundNotifications = parseFAMessagePage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/others/'))
 
     newNotifs = foundNotifications + foundNotes
-    newNotifs = filterUsedComments(newNotifs, loadCommentsFromFile())
+    newNotifs = filterUsedComments(newNotifs, loadCommentsFromFile(args.comments_log_file))
 
     if newNotifs:
         logger.info('New notifications found')
         runBot(newNotifs)
-        logCommentsToFile(newNotifs)
+        logCommentsToFile(args.comments_log_file, newNotifs)
         logger.debug('Notifications written to file')
     else:
         logger.info('No new notifications found')
