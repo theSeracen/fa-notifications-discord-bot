@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 logger = logging.getLogger()
 
 
-def getFAPage(cookieloc: str, url: str) -> str:
+def get_fa_page(cookieloc: pathlib.Path, url: str) -> str:
     """Get the notifications page on FurAffinity"""
     s = _make_session(cookieloc)
     logger.debug('Cookies loaded')
@@ -32,7 +32,7 @@ def getFAPage(cookieloc: str, url: str) -> str:
     return page.text
 
 
-def _make_session(cookieloc) -> requests.Session:
+def _make_session(cookieloc: pathlib.Path) -> requests.Session:
     cj = http.cookiejar.MozillaCookieJar(cookieloc)
     cj.load()
     s = requests.session()
@@ -40,7 +40,7 @@ def _make_session(cookieloc) -> requests.Session:
     return s
 
 
-def parseFANotesPage(page: str) -> list[str]:
+def parse_fa_notes_page(page: str) -> list[str]:
     """Find the unread notes on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
 
@@ -56,7 +56,7 @@ def parseFANotesPage(page: str) -> list[str]:
     return unread_notes
 
 
-def parseFAMessagePage(page: str) -> list[str]:
+def parse_fa_message_page(page: str) -> list[str]:
     """Find the comments on the page"""
     soup = bs4.BeautifulSoup(page, 'html.parser')
 
@@ -76,7 +76,7 @@ def parseFAMessagePage(page: str) -> list[str]:
     return found_comments
 
 
-def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str):
+def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str) -> list[bs4.BeautifulSoup]:
     try:
         comments = soup.find('section', {'id': id_value})
         found_notifications = comments.find('div', {'class': 'section-body js-section'}).find(
@@ -87,29 +87,28 @@ def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str):
     return found_notifications
 
 
-def logCommentsToFile(comments_file: pathlib.Path, comments: list[str]):
+def log_comments_to_file(comments_file: pathlib.Path, comments: list[str]):
     with open(comments_file, 'a') as file:
         for comment in comments:
             file.write(comment + '\n')
 
 
-def loadCommentsFromFile(comment_file: pathlib.Path) -> list[str]:
+def load_comments_from_file(comment_file: pathlib.Path) -> list[str]:
     if comment_file.exists():
         with open(comment_file, 'r') as file:
             comments = file.readlines()
         return comments
     else:
-        logger.warning('No logged comments were found')
         return []
 
 
-def filterUsedComments(found_comments: list[str], logged_comments: list[str]) -> list[str]:
+def filter_used_comments(found_comments: list[str], logged_comments: list[str]) -> list[str]:
     logged_comments = [comm.strip() for comm in logged_comments]
     new_comments = [comm for comm in found_comments if comm not in logged_comments]
     return new_comments
 
 
-def runBot(messages: list[str]):
+def run_bot(messages: list[str]):
     """Start up the discord bot"""
     client = discord.Client()
 
@@ -137,39 +136,53 @@ def runBot(messages: list[str]):
         raise Exception('Could not load Discord token from environment')
 
 
-if __name__ == "__main__":
-    parser.add_argument('cookies', help='the cookies file')
-    parser.add_argument('-v', '--verbose', default=0, action='count')
-    parser.add_argument('-l', '--comments-log-file', default='.usedcomments')
-
+def _setup_logging(verbosity: int):
     logger.setLevel(1)
     stream = logging.StreamHandler(sys.stdout)
+    if verbosity > 0:
+        stream.setLevel(logging.DEBUG)
     formatter = logging.Formatter('[%(asctime)s - %(name)s - %(levelname)s] - %(message)s')
     stream.setFormatter(formatter)
     stream.setLevel(logging.INFO)
+
     logger.addHandler(stream)
 
-    args = parser.parse_args()
 
-    if args.verbose > 0:
-        stream.setLevel(logging.DEBUG)
+def _setup_arguments():
+    parser.add_argument('cookies', help='the cookies file')
+    parser.add_argument('-v', '--verbose', default=0, action='count')
+    parser.add_argument('-l', '--comments-log-file', default='.usedcomments')
+    parser.add_argument('-d', '--discord', action='store_true')
+
+
+def main(args: argparse.Namespace):
+    _setup_logging(args.verbose)
 
     args.cookies = pathlib.Path(args.cookies).resolve()
     args.comments_log_file = pathlib.Path(args.comments_log_file).resolve()
     if not args.cookies.exists():
-        raise Exception('Cannot find cookies file')
+        logger.critical('Cannot find cookies file')
+        sys.exit(1)
+    if not args.comments_log_file.exists():
+        logger.warning('Cannot find previous notifications log')
 
     logger.info('Getting FA pages')
-    foundNotes = parseFANotesPage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/pms/'))
-    foundNotifications = parseFAMessagePage(getFAPage(args.cookies, 'https://www.furaffinity.net/msg/others/'))
+    found_notes = parse_fa_notes_page(get_fa_page(args.cookies, 'https://www.furaffinity.net/msg/pms/'))
+    found_notifications = parse_fa_message_page(get_fa_page(args.cookies, 'https://www.furaffinity.net/msg/others/'))
+    new_notifs = found_notifications + found_notes
+    new_notifs = filter_used_comments(new_notifs, load_comments_from_file(args.comments_log_file))
 
-    newNotifs = foundNotifications + foundNotes
-    newNotifs = filterUsedComments(newNotifs, loadCommentsFromFile(args.comments_log_file))
-
-    if newNotifs:
+    if new_notifs:
         logger.info('New notifications found')
-        runBot(newNotifs)
-        logCommentsToFile(args.comments_log_file, newNotifs)
+        if args.discord:
+            run_bot(new_notifs)
+        log_comments_to_file(args.comments_log_file, new_notifs)
         logger.debug('Notifications written to file')
     else:
         logger.info('No new notifications found')
+
+
+if __name__ == "__main__":
+    _setup_arguments()
+    args = parser.parse_args()
+    main(args)
