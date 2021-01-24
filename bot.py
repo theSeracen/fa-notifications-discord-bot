@@ -76,7 +76,7 @@ def parse_fa_message_page(page: str) -> list[str]:
     return found_comments
 
 
-def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str) -> list[bs4.BeautifulSoup]:
+def _find_notification_in_page(soup: bs4.BeautifulSoup, id_value: str) -> list[bs4.Tag]:
     try:
         comments = soup.find('section', {'id': id_value})
         found_notifications = comments.find('div', {'class': 'section-body js-section'}).find(
