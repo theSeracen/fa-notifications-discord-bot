@@ -145,6 +145,8 @@ def _setup_logging(verbosity: int):
     stream.setFormatter(formatter)
     stream.setLevel(logging.INFO)
 
+    logging.getLogger('discord').setLevel(logging.ERROR)
+
     logger.addHandler(stream)
 
 
